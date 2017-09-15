@@ -89,7 +89,7 @@ Public Function UpdateTempTable(Tablename As String, TableQueryOrSQL As String, 
             strSQL = strSQL & TableQueryOrSQL & " as zz"
         End If
     Else
-        MsgBox "Invalid syntax for the SQL string", vbOKOnly, "Invalid argument for TableQueryorsQL"
+        MsgBox "Invalid syntax for the SQL string", vbOKOnly, "Invalid argument for TableQueryOrSQL"
         strSQL = ""
     End If
 
@@ -140,11 +140,48 @@ ProcError:
     
 End Function
 
-Public Sub DropTable(Tablename As String)
+Public Sub DropTable(Tablename As String, Optional DropFromTemp As Boolean = False)
 
+    Dim db As DAO.database
+    Dim strTempFile As String
+    Dim strError As String
+    Dim intMousePointer As Integer
+    
+    On Error GoTo ProcError
+    
+    intMousePointer = Screen.MousePointer
+    DoCmd.Hourglass True
+    
+    If DropFromTemp Then
+        strError = "Verify the temp database"
+        strTempFile = CurrentProject.Path & "\" _
+                    & Left(CurrentProject.name, InStrRev(CurrentProject.name, ".") - 1) _
+                    & "_Temp.accdb"
+        If FileExists(strTempFile) = True Then
+            strError = "Dropping the table in the temp database"
+            Set db = DBEngine.OpenDatabase(strTempFile)
+            If TableExists(Tablename, db) = True Then
+                db.Execute "Drop Table [" & Tablename & "]", dbFailOnError
+            End If
+            Set db = Nothing
+        End If
+    End If
+    
+    strError = "Dropping the table from current database"
     If TableExists(Tablename) Then
         DoCmd.DeleteObject acTable, Tablename
     End If
+
+ProcExit:
+    If Not db Is Nothing Then Set db = Nothing
+    DoCmd.Hourglass False
+    Screen.MousePointer = intMousePointer
+    
+    Exit Sub
+ProcError:
+    MsgBox Err.Number & vbCrLf & Err.Description, vbOKOnly, "DropTable error"
+    Debug.Print "DropTable error", Err.Number, Err.Description
+    Resume ProcExit
     
 End Sub
 
